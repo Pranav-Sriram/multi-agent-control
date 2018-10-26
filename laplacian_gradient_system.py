@@ -4,8 +4,7 @@ mpl.use('TkAgg')
 import matplotlib.pyplot as plt 
 import matplotlib.animation as animation 
 
-
-class Dynamic_Repulsion_Model:
+class DynamicRepulsionModel:
 	def __init__(self, num_points, space_dimension, points=None, velocities=None, axis1=0, axis2=1, view="standard", verbose=False):
 		self.num_points = num_points
 		self.space_dimension = space_dimension
@@ -24,7 +23,7 @@ class Dynamic_Repulsion_Model:
 			self.points = np.random.uniform(-1.0, 1.0, (num_points, space_dimension))
 			self.initial_points = np.copy(self.points)  # Deep copy. Preserve this
 		else:
-			self.points = points   # TODO - squash to [-1, 1] appropriately
+			self.points = points   # TODO - handle bad input by squashing to [-1, 1] appropriately
 			self.initial_points = np.copy(self.points)
 
 		if velocities is None:
@@ -37,7 +36,6 @@ class Dynamic_Repulsion_Model:
 			print("Initial points: ")
 			print(self.points)
 
-		
 	# Set the display and physical constants
 	def set_physical_parameters(self, damping_factor=0.9, damping_freq=5, num_iters=3000, frame_rate=1, 
 		interval=10, pause_duration=3.0, time_step=5e-5, mass_constant=0.5, elasticity=0.0, speedup_factor=1.0):
@@ -65,10 +63,8 @@ class Dynamic_Repulsion_Model:
 	def set_active_distance_constraints(active_distance_constraints):
 		self.active_distance_constraints = active_distance_constraints
 
-
 	# PART 1: MOTION - high level implementation
 
-	#
 	def update_physical_parameters(self):
 		"""Computes net forces on each point and updates motion parameters accordingly."""
 		net_forces = self.compute_all_net_forces()
@@ -77,13 +73,11 @@ class Dynamic_Repulsion_Model:
 			self.velocity_deltas[i, :] = self.acceleration(i, force) * self.time_step # force exerted changes velocity. Old val erased each time
 		self.move_points(self.time_step)  # all points take step in direction of velocity
 
-
 	def compute_all_net_forces(self):
 		particle_repulsive_forces = self.compute_all_particle_repulsive_forces()
 		wall_forces = self.compute_all_wall_forces()
 		# tension_forces = self.compute_all_pairwise_tensions()
-		return particle_repulsive_forces + wall_forces # + tension_forces
-
+		return particle_repulsive_forces + wall_forces  # todo: add tension_forces
 
 	def acceleration(self, i, force):
 		return force / self.mass_constant # may change to variable masses later
@@ -96,7 +90,6 @@ class Dynamic_Repulsion_Model:
 			for j in range(0, self.space_dimension):
 				self.points[i, j] = self.threshold(i, j)  # threshold both points and velocities
 		
-
 	def threshold(self, i, j):		
 		x = self.points[i, j]
 		if (x < -1):
@@ -107,11 +100,9 @@ class Dynamic_Repulsion_Model:
 			return 1
 		return x
 
-
 	def damp_motion(self):
 		self.velocities *= self.damping_factor
 		self.velocity_deltas *= self.damping_factor
-
 
 	# PArt 2: Force computation details
 	def compute_all_particle_repulsive_forces(self):
@@ -120,30 +111,11 @@ class Dynamic_Repulsion_Model:
 			particle_forces[i, :] = self.compute_net_repulsive_force(i)
 		return particle_forces
 
-
 	def compute_all_wall_forces(self):
 		wall_forces = np.zeros((self.num_points, self.space_dimension))
 		for i in range(self.num_points):
 			wall_forces[i, :] = self.compute_wall_force(self.points[i, :])
-		return wall_forces
-
-
-	def compute_pairwise_tensions(self, forces):
-
-		for i in range(1, self.num_points):
-			point_i = self.points[i, :]
-			for j in range(i):
-				active, max_distance = self.active_distance_constraints[(i, j)]
-				if active:
-					point_j = self.points[j, :]
-					dist_ij = compute_distance(point_i, point_j)
-					if dist_ij > max_distance:
-						
-
-
-
-
-
+		return wall_forces			
 
 	def compute_net_repulsive_force(self, i):
 		force_vector = np.zeros(self.space_dimension)
@@ -163,7 +135,6 @@ class Dynamic_Repulsion_Model:
 				projection[dim] = direction
 				wall_force += self.compute_pairwise_force(point_i, projection)
 		return wall_force
-
 
 	def compute_pairwise_force(self, point_i, point_j, update_energy=None):
 		"""Computes force exerted by point_j on point_i.
@@ -199,8 +170,9 @@ class Dynamic_Repulsion_Model:
 
 	# PART 4: AXES AND PROJECTIONS
 	def principal_projection(self):
-		# matrix = self.initial_points if self.view == "fixed_pca" else self.points
-		matrix = self.initial_points  # CHANGE THIS
+		"""Perform SVD (PCA) to obtain a visualization of high dimensional points in 2D"""
+		matrix = self.initial_points if self.view == "fixed_pca" else self.points
+		# matrix = self.initial_points  # CHANGE THIS
 		U, S, V = np.linalg.svd(matrix, full_matrices=0)  # (N x S; S x S; S x S)
 		s_indices = np.argsort(S)
 		index1 = s_indices[s_indices.size-1]
@@ -249,7 +221,8 @@ class Dynamic_Repulsion_Model:
 		fig = plt.figure()
 		plt.xlim(-1., 1.)
 		plt.ylim(-1., 1.)
-		points_ani = animation.FuncAnimation(fig, func=self.animation_callback, frames=self.num_frames, fargs=None, interval=self.interval, repeat=False)
+		points_ani = animation.FuncAnimation(fig, func=self.animation_callback, frames=self.num_frames, 
+			fargs=None, interval=self.interval, repeat=False)
 		plt.show()
 
 	
@@ -257,8 +230,6 @@ class Dynamic_Repulsion_Model:
 		""" Callback registered with the FuncAnimation.
 
 		Implements the backend logic for updating points between frames."""
-
-
 
 		# pause at start 
 		if num == 1:
@@ -303,13 +274,13 @@ class Dynamic_Repulsion_Model:
 		""" Maps final positions to corners of the hypercube.
 		This function is used in applications where the goal of the simulation
 		is to perform a gradient-based optimization over continuous variables,
-		but whose output must be integer-valued."""
+		but whose output must be integer-valued (which was in fact the original purpose of this
+		project!). """
 
 		for i in range(0, self.num_points):
 			for j in range(0, self.space_dimension):
 				self.points[i, j] = 1. if self.points[i, j] >= 0 else -1.
 				
-
 	def show_final_summaries(self, show_points=True, show_vel=True, show_coord=True, show_energies=True):
 		if show_points:
 			print("Final Points: \n")
@@ -318,7 +289,6 @@ class Dynamic_Repulsion_Model:
 		if show_vel:
 			print("Final Velocities: \n")
 			print(self.velocities)
-		
 		
 		if show_coord:
 			print("Final coordinates: \n")
@@ -358,3 +328,4 @@ if __name__=="__main__":
 	# Constants that work fairly well:
 	# model1 = Dynamic_Repulsion_Model(10, 50, view="standard")
 	# model1.set_physical_parameters(damping_factor=0.97, damping_freq=20, frame_rate=1, mass_constant=5e5, time_step=1e-4, interval=5)
+
