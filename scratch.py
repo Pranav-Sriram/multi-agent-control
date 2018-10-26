@@ -1,3 +1,12 @@
+
+# Moved experimental code no longer used in core algorithms here.
+
+import numpy as np
+from cvxpy import *
+from graph_helper import * 
+from test_graphs import * 
+from diffusion import * 
+
 def asymmetric_fast_linear_averaging(n, adjacency_matrix=None):
 	"""
 	Computes optimal, possibly asymmetric LCP weights for fast linear averaging for a given graph.
