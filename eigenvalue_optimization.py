@@ -10,7 +10,6 @@ from graph_helper import *
 from test_graphs import * 
 from diffusion import * 
 
-
 def communication_costs(n, sensor_locations, cost_function):
 	"""Returns a matrix of pairwise communication costs.
 
@@ -29,13 +28,11 @@ def communication_costs(n, sensor_locations, cost_function):
 			cost_matrix[j, i] = cost	
 	return cost_matrix
 
-
 def true_communication_cost(adjacency_matrix, cost_alpha):
 	n = adjacency_matrix.shape[0]
 	for i in range(n):
 		adjacency_matrix[i, i] = 0.  # zero out the diagonals
 	return np.sum(adjacency_matrix) * cost_alpha / n
-
 
 def fast_linear_averaging(adjacency_matrix=None, cost_matrix=None, cost_alpha=0., tol=1e-4):
 	"""
@@ -93,51 +90,41 @@ def fast_linear_averaging(adjacency_matrix=None, cost_matrix=None, cost_alpha=0.
 
 	return results_dict
 
-
 def distributed_leader_selection(adjacency_matrix, alpha=0.5, beta=0.25, kappa=0.5, mu=1.3):
 	"""
 		alpha: parameter for computing PPR-based importance scores (0.5 recommended)
 
-		beta: parameter for computing PPR matrix that controls spread (0.5 or greater recommended)
+		beta: parameter for computing PPR matrix that controls spread (still experimenting)
 		kappa: regularization parameter. Larger kappa -> more concentration over x. 
+
+		See paper (upcoming) for full details of the algorithm.
 	"""
 	n = adjacency_matrix.shape[0]
 	x = Variable(n)
 	I = np.identity(n)
 
+	# First, compute the results of ordinary fast linear averaging
 	flda_results = fast_linear_averaging(adjacency_matrix)
 	lcp_matrix = flda_results["lcp_matrix"]
-
-
-	#rw_matrix = adjacency_matrix / np.sum(adjacency_matrix, 1)
-	#W_hat = 0.5 * (rw_matrix + I)
 	
+	# Use these results to compute a vector of scores related to PageRank. The dot product of these 
+	# scores with x (the optimization variable) forms the part of our objective encouraing centrality.
 	pagerank_vec = global_page_rank(lcp_matrix, 0.1)
 	ppr_double_sos_vector = ppr_double_squared(lcp_matrix, alpha)
-
-	#ppr_matrix = beta * np.linalg.inv(np.identity(n) - (1. - beta) * lcp_matrix)
-
-	#G = np.matmul(ppr_matrix, ppr_matrix)  # gram matrix 
-	
-	# print("ppr scores: ", np.diagonal(G))
-
 	alignment = n * ppr_double_sos_vector.T * x  # Want this less than 1
+
+	# Compute the part of our objective that controls spread and sparsity
 	Z = beta * np.linalg.inv(I - (1. - beta) * lcp_matrix)
 	lambda1 = smallest_eigenvalue(Z)
-	#print("spectrum: ", spectrum(Z))
 	print("smallest_eigenvalue: ", lambda1)
-
 	concentration = n * quad_form(x, Z - kappa * lambda1 * I)
+
+	# Solve the optimization problem
 	objective = Minimize(alignment + mu * concentration)
-
-	#objective = Maximize(alignment - kappa * concentration)
-
-	
 	constraints = [
 	x >= 0,
 	np.ones(n).T * x == 1.
 	]
-
 	problem = Problem(objective, constraints)
 	problem.solve()
 
@@ -153,8 +140,12 @@ def distributed_leader_selection(adjacency_matrix, alpha=0.5, beta=0.25, kappa=0
 	}
 	return results_dict
 
-
 def dual_sdp_leader_selection(adjacency_matrix, min_leaders):
+	"""Experimental. Solves dual problem for nonconvex variant of leader selection.
+
+	The hope is that despite nonconvexity, dual optimal solution will be useful/a good 
+	approximation to optimal solution. Needs more experimenting.
+	"""
 	# Basic setup/constants
 	n = adjacency_matrix.shape[0]
 	I = np.identity(n)
@@ -189,7 +180,6 @@ def dual_sdp_leader_selection(adjacency_matrix, min_leaders):
 	print("x: ", x)
 	draw_graph_from_adjacency(adjacency_matrix)
 	
-
 def reoptimizer(n, cost_matrix, cost_alpha, tol):
 	"""
 	First solves relaxed convex optimization problem with
