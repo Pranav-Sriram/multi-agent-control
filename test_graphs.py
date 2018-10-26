@@ -2,9 +2,9 @@ import numpy as np
 import networkx as nx
 
 class TestSuite:
+	"""Test harness for building various example graphs and proximity networks."""
 
-	def __init__(self):
-		return 
+	# default initialization
 
 	def v_graph(self):
 		return np.array([
@@ -21,6 +21,13 @@ class TestSuite:
 			[0., 0., 0., 1., 0.]])
 
 	def clique_plus_one(self, clique_size, connector=0):
+		"""Constructs a graph consisting of a clique of a given size plus one extra node.
+
+		The additional node corresponds to the last row in the adjacency_matrix,
+		and is connected to a single other node with index connector. 
+
+
+		"""
 		n = clique_size
 		adjacency_matrix = np.ones((n+1, n+1))
 		for i in range(n+1):
@@ -46,6 +53,7 @@ class TestSuite:
 
 
 	def example_test_cost_matrix(self, num_robots):
+		""" A test cost matrix with a few high cost edges."""
 		cost_matrix = np.random.random((num_robots, num_robots))
 		for i in range(num_robots):
 			for j in range(num_robots):
@@ -54,18 +62,16 @@ class TestSuite:
 					cost_matrix[j, i] = 8.
 		return cost_matrix
 
-
 	def bicluster(self, num_robots, p=0.7, q=0.05):
 		adjacency_matrix = np.zeros((num_robots, num_robots))
 		for i in range(1, num_robots):
 			for j in range(i):
 				if (i - (num_robots-1) / 2.) * (j - (num_robots-1) / 2.) <= 0:
-					adjacency_matrix[i, j] = 1. if np.random.random() < q else 0.
+					adjacency_matrix[i, j] = int(np.random.random() < q)  # bool to int casting
 				else:
-					adjacency_matrix[i, j] = 1. if np.random.random() < p else 0.
+					adjacency_matrix[i, j] = int(np.random.random() < p)
 				adjacency_matrix[j, i] = adjacency_matrix[i, j]
 		return adjacency_matrix
-
 
 	def dumbbell(self, num_robots):
 		adjacency_matrix = np.zeros((num_robots, num_robots))
@@ -78,13 +84,12 @@ class TestSuite:
 		adjacency_matrix[num_robots-1, 0] = 1.
 		return adjacency_matrix
 
-
 	def cluster_plus_sparse(self, cluster_size, sparse_size, cc_prob, sc_prob, ss_prob):
 		n = cluster_size + sparse_size
 		adjacency_matrix = np.zeros((n, n))
 		for i in range(1, n):
 			for j in range(i):
-				if i < cluster_size:  # cluster-cluster
+				if i < cluster_size:  # cluster-cluster connections 
 					prob = cc_prob 
 				else:
 					prob = sc_prob if j < cluster_size else ss_prob
@@ -92,7 +97,6 @@ class TestSuite:
 				adjacency_matrix[i, j] = 1. if np.random.random() < prob else 0.
 				adjacency_matrix[j, i] = adjacency_matrix[i, j]
 		return adjacency_matrix
-
 
 	def robot_proximity_graph(self, num_robots, min_radius=0.1, max_radius=0.5):
 		sensing_radii = np.random.uniform(low=min_radius, high=max_radius, size=(num_robots))
@@ -105,6 +109,4 @@ class TestSuite:
 					adjacency_matrix[i, j] = 1.
 					adjacency_matrix[j, i] = 1.
 		return adjacency_matrix
-
-
-						
+			
