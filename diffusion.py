@@ -1,6 +1,11 @@
 import numpy as np 
 from graph_helper import * 
 
+# Experimental work on the following question: can we learn good diffusion weights on a 
+# graph in an unsupervised, iterative, distributed way? We're interested in the same types of optimization
+# problems as in eigenvalue_optimization, but now seek iterative algorithms that rely solely on local 
+# information.
+
 def basic_diffusion_test(adjacency_matrix, iters):
 	num_robots = adjacency_matrix.shape[0]
 	initial_vals = np.zeros(num_robots)
@@ -25,7 +30,7 @@ def ppr_iteration(init_diffusion_matrix, alpha, iters, lr=1e-1, tol=1e-4):
 			mask = np.where(np.abs(init_diffusion_matrix[i, :]) > tol, np.ones(n), np.zeros(n))
 			degree = np.sum(mask)
 
-			# invert-mask-normalize-update-symmetrize-maintain
+			# invert->mask->normalize->update->symmetrize->maintain
 			#inverse_ranks = 1. / (ppr_vec + 1e-9)
 			ppr_vec *= mask  # mask out non-neighbors (but keep self-edge)
 			ppr_vec /= (np.sum(ppr_vec) + 1e-7) # normalize
